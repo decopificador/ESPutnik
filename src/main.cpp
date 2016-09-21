@@ -1,6 +1,4 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
 #include "main.h"
 
 bool led0=false;
@@ -38,11 +36,16 @@ void setup() {
     Serial.println("mDNS responder started");
   }
 
+  // Set up OTA updates
+  setup_OTA();
+
   // Set up MQTT server connection
   setup_mqtt();
 }
 
 void loop() {
+  ArduinoOTA.handle();
+  yield();
   if (!digitalRead(D5)) {
     led0=!led0;
     if (led0) {
@@ -102,6 +105,14 @@ void setup_wifi() {
   Serial.printf("MAC -> %s\n",WiFi.macAddress().c_str());
   Serial.print("IP -> ");
   Serial.println(WiFi.localIP());
+}
+
+void setup_OTA() {
+  ArduinoOTA.begin();
+  ArduinoOTA.onStart(onOTAStart);
+  ArduinoOTA.onEnd(onOTAEnd);
+  ArduinoOTA.onProgress(onOTAProgress);
+  ArduinoOTA.onError(onOTAError);
 }
 
 void setup_mqtt() {
@@ -213,4 +224,32 @@ void onMqttPublish(uint16_t packetId) {
   Serial.println("** Publish acknowledged **");
   Serial.print("  packetId: ");
   Serial.println(packetId);
+}
+
+void onOTAStart() {
+  // String type;
+  // if (ArduinoOTA.getCommand() == U_FLASH)
+  //   type = "sketch";
+  // else // U_SPIFFS
+  //   type = "filesystem";
+  //
+  // // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+  Serial.println("Start updating");
+}
+
+void onOTAEnd() {
+  Serial.println("\nEnd");
+}
+
+void onOTAProgress(unsigned int progress, unsigned int total) {
+  Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+}
+
+void onOTAError(ota_error_t error) {
+  Serial.printf("Error[%u]: ", error);
+  if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+  else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+  else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+  else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+  else if (error == OTA_END_ERROR) Serial.println("End Failed");
 }

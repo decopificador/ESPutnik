@@ -1,6 +1,10 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ArduinoOTA.h>
+#include <WiFiUdp.h>
 #include <AsyncMqttClient.h>
 
 #define D0    16  // Wake from sleep
@@ -36,5 +40,10 @@ void onMqttSubscribe(uint16_t packetId, uint8_t qos);
 void onMqttUnsubscribe(uint16_t packetId);
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
 void onMqttPublish(uint16_t packetId);
+void onMqttPublish(uint16_t packetId);
+void onOTAStart(void);
+void onOTAEnd(void);
+void onOTAProgress(unsigned int progress, unsigned int total);
+void onOTAError(ota_error_t error);
 
 #endif  // MAIN_H_
