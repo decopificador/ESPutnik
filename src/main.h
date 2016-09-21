@@ -34,6 +34,8 @@ void setup_io(void);
 void setup_wifi(void);
 void setup_OTA(void);
 void setup_mqtt(void);
+void onSTAConnected(WiFiEvent_t event);
+void onSTADisconnected(WiFiEvent_t event);
 void onMqttConnect(void);
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
 void onMqttSubscribe(uint16_t packetId, uint8_t qos);

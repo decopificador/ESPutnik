@@ -9,18 +9,20 @@ const char* password = "RaspberryPi";
 const char* mqtt_server = "192.168.42.1";
 const String host = String("ESPutnik-") + String(ESP.getChipId(), HEX);
 
-WiFiClient espWifi;
-AsyncMqttClient espMQTT;
+AsyncMqttClient mqttClient;
 
 void setup() {
   Serial.begin(115200);
   delay(100);
   // Set hostname.
   WiFi.hostname(host);
-  Serial.println("\n\nHostname: " + host);
+  Serial.println("\n\n\rHostname: " + host);
 
   // Configure IO pins
   setup_io();
+
+  // Set up MQTT server connection
+  setup_mqtt();
 
   // Connect to WiFi network
   setup_wifi();
@@ -38,9 +40,6 @@ void setup() {
 
   // Set up OTA updates
   setup_OTA();
-
-  // Set up MQTT server connection
-  setup_mqtt();
 }
 
 void loop() {
@@ -49,17 +48,17 @@ void loop() {
   if (!digitalRead(D5)) {
     led0=!led0;
     if (led0) {
-      espMQTT.publish("test/led0", 0, false, "1");
+      mqttClient.publish("test/led0", 0, false, "1");
     } else {
-      espMQTT.publish("test/led0", 0, false, "0");
+      mqttClient.publish("test/led0", 0, false, "0");
     }
     delay(500);
   }
   if (!digitalRead(D6)) {
-    espMQTT.publish("test/led0", 0, false, "0");
-    espMQTT.publish("test/led1", 0, false, "0");
-    espMQTT.publish("test/led2", 0, false, "0");
-    espMQTT.publish("test/led3", 0, false, "0");
+    mqttClient.publish("test/led0", 0, false, "0");
+    mqttClient.publish("test/led1", 0, false, "0");
+    mqttClient.publish("test/led2", 0, false, "0");
+    mqttClient.publish("test/led3", 0, false, "0");
     delay(500);
   }
 }
@@ -77,34 +76,55 @@ void setup_io(){
 void setup_wifi() {
   // Configure WiFi modes
   WiFi.persistent(false);
+  WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
   WiFi.mode(WIFI_STA);
+  WiFi.onEvent(onSTAConnected, WIFI_EVENT_STAMODE_GOT_IP);
+  WiFi.onEvent(onSTADisconnected, WIFI_EVENT_STAMODE_DISCONNECTED);
+//  WiFi.onEvent(onAPConnected, WIFI_EVENT_SOFTAPMODE_STACONNECTED);
+//  WiFi.onEvent(onAPDisconnected, WIFI_EVENT_SOFTAPMODE_STADISCONNECTED);
   delay(50);
 
-  // Start generating own WiFi network
-  // Serial.println();
-  // Serial.print("Starting AP");
-  //
-  // WiFi.softAP(host);
-  //
-  // Serial.printf("WiFi connected [%s]\n", host);
-  // Serial.printf("MAC -> %s\n",WiFi.softAPmacAddress().c_str());
-  // Serial.print("IP -> ");
-  // Serial.println(WiFi.softAPIP());
+  WiFiMode_t radio = WiFi.getMode();
+  if ((radio == WIFI_AP) || (radio == WIFI_AP_STA )) {
+    // Start generating own WiFi network
+    Serial.println();
+    Serial.println("Starting WiFi hotspot");
 
-  // Start connecting to a WiFi network
-  Serial.printf("Connecting to WiFi [%s]\n", ssid);
-
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(250);
+    if(WiFi.softAP(host.c_str())){
+      Serial.printf("Hotspot deployed [%s]\n\r", host.c_str());
+      Serial.printf("MAC -> %s\n\r",WiFi.softAPmacAddress().c_str());
+      Serial.print("IP -> ");
+      Serial.println(WiFi.softAPIP());
+    }
   }
-  Serial.println("\nConnection successful");
-  Serial.printf("MAC -> %s\n",WiFi.macAddress().c_str());
-  Serial.print("IP -> ");
-  Serial.println(WiFi.localIP());
+
+  if ((radio == WIFI_STA) || (radio == WIFI_AP_STA )) {
+    // Start connecting to a WiFi network
+    Serial.printf("Connecting to WiFi [%s]\n\r", ssid);
+    WiFi.begin(ssid, password);
+  }
+
+  switch (WiFi.waitForConnectResult()) {
+    // case WL_CONNECTED:
+    //   Serial.println("Connection established");
+    //   break;
+    case WL_IDLE_STATUS:
+      Serial.println("Wi-Fi is in process of changing between statuses");
+      break;
+    case WL_NO_SSID_AVAIL:
+      Serial.println("SSID cannot be reached");
+      break;
+    case WL_CONNECT_FAILED:
+      Serial.println("Incorrect password");
+      break;
+    case WL_CONNECTION_LOST:
+      Serial.println("Connection lost");
+      break;
+    case WL_DISCONNECTED:
+      Serial.println("Module is not configured in station mode");
+      break;
+  }
 }
 
 void setup_OTA() {
@@ -116,41 +136,50 @@ void setup_OTA() {
 }
 
 void setup_mqtt() {
-  espMQTT.onConnect(onMqttConnect);
-  espMQTT.onDisconnect(onMqttDisconnect);
-  espMQTT.onSubscribe(onMqttSubscribe);
-  espMQTT.onUnsubscribe(onMqttUnsubscribe);
-  espMQTT.onMessage(onMqttMessage);
-  espMQTT.onPublish(onMqttPublish);
-  espMQTT.setServer(mqtt_server, 1883);
-  espMQTT.setKeepAlive(5).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(host.c_str());
+  mqttClient.onConnect(onMqttConnect);
+  mqttClient.onDisconnect(onMqttDisconnect);
+  mqttClient.onSubscribe(onMqttSubscribe);
+  mqttClient.onUnsubscribe(onMqttUnsubscribe);
+  mqttClient.onMessage(onMqttMessage);
+  mqttClient.onPublish(onMqttPublish);
+  mqttClient.setServer(mqtt_server, 1883);
+  mqttClient.setKeepAlive(15).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(host.c_str());
+}
+
+void onSTAConnected(WiFiEvent_t event) {
+  Serial.println("WiFi connected");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
   Serial.println("Connecting to MQTT...");
-  espMQTT.connect();
+  mqttClient.connect();
+}
+
+void onSTADisconnected(WiFiEvent_t event) {
+  Serial.println("Lost WiFi connection");
 }
 
 void onMqttConnect() {
   Serial.println("** Connected to the broker **");
   // Once connected, publish status...
-  uint16_t packetIdPub2 = espMQTT.publish(WILL_TOPIC, WILL_QOS, WILL_RETAIN, "ESPutnik online");
+  uint16_t packetIdPub2 = mqttClient.publish(WILL_TOPIC, WILL_QOS, WILL_RETAIN, "ESPutnik online");
   Serial.print("Publishing status at QoS 2, packetId: ");
   Serial.println(packetIdPub2);
 
   // ... and resubscribe to topics
-  espMQTT.subscribe("test/led0",0);
-  espMQTT.subscribe("test/led1",0);
-  espMQTT.subscribe("test/led2",0);
-  espMQTT.subscribe("test/led3",0);
-  espMQTT.subscribe("test/reset",0);
+  mqttClient.subscribe("test/led0",0);
+  mqttClient.subscribe("test/led1",0);
+  mqttClient.subscribe("test/led2",0);
+  mqttClient.subscribe("test/led3",0);
+  mqttClient.subscribe("test/reset",0);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   Serial.println("** Disconnected from the broker **");
   Serial.print("  Error code: ");
   Serial.println((int8_t)reason);
-  WiFi.waitForConnectResult();
-  if (WiFi.status() == WL_CONNECTED){
+  if (WiFi.waitForConnectResult() == WL_CONNECTED){
     Serial.println("Reconnecting to MQTT...");
-    espMQTT.connect();
+    mqttClient.connect();
   }
 }
 
@@ -176,47 +205,48 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   for (int i = 0; i < length; i++) Serial.print(payload[i]);
 
   Serial.println();
+  Serial.println(payload);
 
   if (!strcmp(topic,"test/reset")){
-      if ((char)payload[0] == '1') {
-        espMQTT.publish("test/text", 0, false, "Reseting ESPutnik");
-        espMQTT.publish("test/reset", 0, false, "0");
-        ESP.reset();
-      }
+    if ((char)payload[0] == '1') {
+      mqttClient.publish("test/text", 0, false, "Reseting ESPutnik");
+      mqttClient.publish("test/reset", 0, false, "0");
+      ESP.reset();
+    }
   }else if (!strcmp(topic,"test/led0")){
-      if (!strcmp(payload,"on")) {
-        digitalWrite(D0, HIGH);
-        espMQTT.publish("test/text", 0, false, "Turning led0 ON");
-        led0=true;
-      } else {
-        digitalWrite(D0, LOW);
-        espMQTT.publish("test/text", 0, false, "Turning led0 OFF");
-        led0=false;
-      }
+    if (!strcmp(payload,"on")) {
+      digitalWrite(D0, HIGH);
+      mqttClient.publish("test/text", 0, false, "Turning led0 ON");
+      led0=true;
+    } else {
+      digitalWrite(D0, LOW);
+      mqttClient.publish("test/text", 0, false, "Turning led0 OFF");
+      led0=false;
+    }
   }else if (!strcmp(topic,"test/led1")){
-      if (!strcmp(payload,"1")) {
-        digitalWrite(D1, HIGH);
-        espMQTT.publish("test/text", 0, false, "Turning led1 ON");
-      } else {
-        digitalWrite(D1, LOW);
-        espMQTT.publish("test/text", 0, false, "Turning led1 OFF");
-      }
+    if (!strcmp(payload,"on")) {
+      digitalWrite(D1, HIGH);
+      mqttClient.publish("test/text", 0, false, "Turning led1 ON");
+    } else {
+      digitalWrite(D1, LOW);
+      mqttClient.publish("test/text", 0, false, "Turning led1 OFF");
+    }
   }else if (!strcmp(topic,"test/led2")){
-      if (payload[0] == '1') {
-        digitalWrite(D2, HIGH);
-        espMQTT.publish("test/text", 0, false, "Turning led2 ON");
-      } else {
-        digitalWrite(D2, LOW);
-        espMQTT.publish("test/text", 0, false, "Turning led2 OFF");
-      }
+    if (!strcmp(payload,"on")) {
+      digitalWrite(D2, HIGH);
+      mqttClient.publish("test/text", 0, false, "Turning led2 ON");
+    } else {
+      digitalWrite(D2, LOW);
+      mqttClient.publish("test/text", 0, false, "Turning led2 OFF");
+    }
   }else if (!strcmp(topic,"test/led3")){
-      if ((char)payload[0] == '1') {
-        digitalWrite(D3, HIGH);
-        espMQTT.publish("test/text", 0, false, "Turning led3 ON");
-      } else {
-        digitalWrite(D3, LOW);
-        espMQTT.publish("test/text", 0, false, "Turning led3 OFF");
-      }
+    if (!strcmp(payload,"on")) {
+      digitalWrite(D3, HIGH);
+      mqttClient.publish("test/text", 0, false, "Turning led3 ON");
+    } else {
+      digitalWrite(D3, LOW);
+      mqttClient.publish("test/text", 0, false, "Turning led3 OFF");
+    }
   }
 }
 
