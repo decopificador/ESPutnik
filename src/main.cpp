@@ -37,7 +37,7 @@ void setup() {
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
   if (!MDNS.begin(host.c_str())) {
-    Serial.println("Error setting up MDNS responder!");
+    Serial.println("Error setting up mDNS responder!");
   } else {
     Serial.println("mDNS responder started");
   }
@@ -80,10 +80,6 @@ void setup_wifi() {
   WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
   WiFi.mode(WIFI_STA);
-//  WiFi.onEvent(onSTAConnected, WIFI_EVENT_STAMODE_GOT_IP);
-//  WiFi.onEvent(onSTADisconnected, WIFI_EVENT_STAMODE_DISCONNECTED);
-//  WiFi.onEvent(onAPConnected, WIFI_EVENT_SOFTAPMODE_STACONNECTED);
-//  WiFi.onEvent(onAPDisconnected, WIFI_EVENT_SOFTAPMODE_STADISCONNECTED);
   delay(50);
 
   WiFiMode_t radio = WiFi.getMode();
@@ -179,10 +175,25 @@ void onMqttConnect() {
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   Serial.println("** Disconnected from the broker **");
   Serial.print("  Error code: ");
-  Serial.println((int8_t)reason);
-  if (WiFi.waitForConnectResult() == WL_CONNECTED){
-    Serial.println("Reconnecting to MQTT...");
-    mqttClient.connect();
+  switch ((int8_t)reason) {
+    case 0:
+      Serial.println("TCP disconnected");
+      break;
+    case 1:
+      Serial.println("Connection Refused, unacceptable protocol version");
+      break;
+    case 2:
+      Serial.println("Connection Refused, identifier rejected");
+      break;
+    case 3:
+      Serial.println("Connection Refused, Server unavailable");
+      break;
+    case 4:
+      Serial.println("Connection Refused, bad user name or password");
+      break;
+    case 5:
+      Serial.println("Connection Refused, not authorized");
+      break;
   }
 }
 
@@ -207,13 +218,10 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   Serial.print("  payload: ");
   for (int i = 0; i < length; i++) Serial.print(payload[i]);
 
-  Serial.println();
-  Serial.println(payload);
-
   if (!strcmp(topic,"test/reset")){
-    if ((char)payload[0] == '1') {
+    if (!strcmp(payload,"on")) {
       mqttClient.publish("test/text", 0, false, "Reseting ESPutnik");
-      mqttClient.publish("test/reset", 0, false, "0");
+      mqttClient.publish("test/reset", 0, false, "off");
       ESP.reset();
     }
   }else if (!strcmp(topic,"test/led0")){
