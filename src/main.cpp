@@ -9,6 +9,7 @@ const char* password = "RaspberryPi";
 const char* mqtt_server = "192.168.42.1";
 const String host = String("ESPutnik-") + String(ESP.getChipId(), HEX);
 
+//WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
 AsyncMqttClient mqttClient;
 
 void setup() {
@@ -24,6 +25,9 @@ void setup() {
   // Set up MQTT server connection
   setup_mqtt();
 
+  // Set up OTA updates
+  setup_OTA();
+
   // Connect to WiFi network
   setup_wifi();
 
@@ -37,29 +41,26 @@ void setup() {
   } else {
     Serial.println("mDNS responder started");
   }
-
-  // Set up OTA updates
-  setup_OTA();
 }
 
 void loop() {
   ArduinoOTA.handle();
   yield();
   if (!digitalRead(D5)) {
+    while (!digitalRead(D5));
     led0=!led0;
     if (led0) {
-      mqttClient.publish("test/led0", 0, false, "1");
+      mqttClient.publish("test/led0", 0, false, "on");
     } else {
-      mqttClient.publish("test/led0", 0, false, "0");
+      mqttClient.publish("test/led0", 0, false, "off");
     }
-    delay(500);
   }
   if (!digitalRead(D6)) {
-    mqttClient.publish("test/led0", 0, false, "0");
-    mqttClient.publish("test/led1", 0, false, "0");
-    mqttClient.publish("test/led2", 0, false, "0");
-    mqttClient.publish("test/led3", 0, false, "0");
-    delay(500);
+    while (!digitalRead(D6));
+    mqttClient.publish("test/led0", 0, false, "off");
+    mqttClient.publish("test/led1", 0, false, "off");
+    mqttClient.publish("test/led2", 0, false, "off");
+    mqttClient.publish("test/led3", 0, false, "off");
   }
 }
 
@@ -79,8 +80,8 @@ void setup_wifi() {
   WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
   WiFi.mode(WIFI_STA);
-  WiFi.onEvent(onSTAConnected, WIFI_EVENT_STAMODE_GOT_IP);
-  WiFi.onEvent(onSTADisconnected, WIFI_EVENT_STAMODE_DISCONNECTED);
+//  WiFi.onEvent(onSTAConnected, WIFI_EVENT_STAMODE_GOT_IP);
+//  WiFi.onEvent(onSTADisconnected, WIFI_EVENT_STAMODE_DISCONNECTED);
 //  WiFi.onEvent(onAPConnected, WIFI_EVENT_SOFTAPMODE_STACONNECTED);
 //  WiFi.onEvent(onAPDisconnected, WIFI_EVENT_SOFTAPMODE_STADISCONNECTED);
   delay(50);
@@ -128,11 +129,11 @@ void setup_wifi() {
 }
 
 void setup_OTA() {
-  ArduinoOTA.begin();
   ArduinoOTA.onStart(onOTAStart);
   ArduinoOTA.onEnd(onOTAEnd);
   ArduinoOTA.onProgress(onOTAProgress);
   ArduinoOTA.onError(onOTAError);
+  MDNS.addService("OTA", "udp", 54039);
 }
 
 void setup_mqtt() {
@@ -146,17 +147,19 @@ void setup_mqtt() {
   mqttClient.setKeepAlive(15).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(host.c_str());
 }
 
-void onSTAConnected(WiFiEvent_t event) {
+WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP& event) {
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.println("Starting OTA service...");
+  ArduinoOTA.begin();
   Serial.println("Connecting to MQTT...");
   mqttClient.connect();
-}
+});
 
-void onSTADisconnected(WiFiEvent_t event) {
+WiFiEventHandler disconnectedEventHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
   Serial.println("Lost WiFi connection");
-}
+});
 
 void onMqttConnect() {
   Serial.println("** Connected to the broker **");
