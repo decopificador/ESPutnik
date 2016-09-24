@@ -6,6 +6,8 @@
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
 #include <AsyncMqttClient.h>
+#include <Esp8266Configuration.h>
+#include <FS.h>
 
 #define D0    16  // Wake from sleep
 #define D1    5   // I2C Bus SCL (clock)
@@ -30,6 +32,16 @@
 #define WILL_RETAIN true
 #define WILL_MSG "Connection lost!"
 
+const String host = "ESPutnik-" + String(ESP.getChipId(), HEX);
+#define HOSTNAME host.c_str()
+#define DEFAULT_STA_SSID "Musquetteer_AP"
+#define DEFAULT_STA_PASSWORD "RaspberryPi"
+#define DEFAULT_AP_SSID host.c_str()
+#define DEFAULT_AP_PASSWORD "ESPutnik"
+#define DEFAULT_MQTT_SERVER "192.168.42.1"
+#define DEFAULT_MQTT_PORT "1883"
+
+void load_config(void);
 void setup_io(void);
 void setup_wifi(void);
 void setup_OTA(void);
