@@ -9,6 +9,7 @@
 #include <Esp8266Configuration.h>
 #include <FS.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266FtpServer.h>
 
 #define D0    16  // Wake from sleep
 #define D1    5   // I2C Bus SCL (clock)

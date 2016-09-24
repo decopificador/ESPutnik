@@ -7,6 +7,7 @@ bool led0=false;
 Esp8266Configuration configuration;
 AsyncMqttClient mqttClient;
 ESP8266WebServer httpServer(80);
+FtpServer ftpService;
 
 void setup() {
   Serial.begin(115200);
@@ -35,11 +36,17 @@ void setup() {
   setup_httpserver();
   httpServer.begin();
   Serial.printf("Ready! Open http://%s/ in your browser\n\r", WiFi.localIP().toString().c_str());
+
+  if (SPIFFS.begin()) {
+    Serial.println("SPIFFS opened!");
+    ftpService.begin("esp8266","esp8266");    //username, password for ftp.  set ports in ESP8266FtpServer.h  (default 21, 50009 for PASV)
+  }
 }
 
 void loop() {
   ArduinoOTA.handle();
   httpServer.handleClient();
+  ftpService.handleFTP();
   yield();
   if (!digitalRead(D5)) {
     while (!digitalRead(D5));
@@ -102,11 +109,14 @@ void setup_wifi() {
   bool enableAp = false;
   bool enableStation = false;
   if (configuration.isWifiStationEnabled() && configuration.isWifiStationConfigurationValid()) {
+    Serial.println("Station mode active");
     enableStation = true;
   } else {
+    Serial.println("Fallback Access Point mode active");
     enableAp = true;
   }
   if (configuration.isWifiApEnabled()) {
+    Serial.println("Access Point mode active");
     enableAp = true;
   }
   if (enableAp) {
@@ -408,6 +418,7 @@ void onOTAStart() {
   //   type = "filesystem";
   //
   // // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+  SPIFFS.end();
   Serial.println("Start updating");
 }
 

@@ -1,0 +1,1 @@
+{"wifi_ap_ssid":"ESPutnik-cdad26","wifi_ap_password":"ESPutnik","wifi_ap_enabled":false,"wifi_station_ssid":"Musquetteer_AP","wifi_station_password":"RaspberryPi","wifi_station_enabled":true,"mqtt_enabled":true,"mqtt_host":"192.168.42.1","mqtt_port":1883,"mqtt_user":"","mqtt_password":"","mqtt_device_name":"ESPutnik-cdad26"}
