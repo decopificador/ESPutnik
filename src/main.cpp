@@ -3,21 +3,19 @@
 
 bool led0=false;
 
-// Update these with values suitable for your network.
-const char* ssid = "Musquetteer_AP";
-const char* password = "RaspberryPi";
-const char* mqtt_server = "192.168.42.1";
-const String host = String("ESPutnik-") + String(ESP.getChipId(), HEX);
-
 //WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
+Esp8266Configuration configuration;
 AsyncMqttClient mqttClient;
 
 void setup() {
   Serial.begin(115200);
   delay(100);
   // Set hostname.
-  WiFi.hostname(host);
-  Serial.println("\n\n\rHostname: " + host);
+  WiFi.hostname(HOSTNAME);
+  Serial.printf("\n\n\rHostname: %s\n\r",HOSTNAME);
+
+  // Load configuration
+  load_config();
 
   // Configure IO pins
   setup_io();
@@ -30,17 +28,6 @@ void setup() {
 
   // Connect to WiFi network
   setup_wifi();
-
-  // Set up mDNS responder:
-  // - first argument is the domain name, in this example
-  //   the fully-qualified domain name is "esp8266.local"
-  // - second argument is the IP address to advertise
-  //   we send our IP address on the WiFi network
-  if (!MDNS.begin(host.c_str())) {
-    Serial.println("Error setting up mDNS responder!");
-  } else {
-    Serial.println("mDNS responder started");
-  }
 }
 
 void loop() {
@@ -64,6 +51,28 @@ void loop() {
   }
 }
 
+void load_config() {
+  // read configuration from spiffs
+  Serial.println("** Loading configuration from SPIFFS **");
+  configuration.read();
+
+  if (configuration.isMqttConfigurationValid() && configuration.isWifiStationConfigurationValid() && configuration.isWifiApConfigurationValid()) {
+    Serial.println("Configuration file loaded successfully.");
+  }else{
+    Serial.println("Configuration file error, defaults loaded.");
+    // write default configuration
+    configuration.setWifiStationSsid((char*)DEFAULT_STA_SSID);
+    configuration.setWifiStationPassword((char*)DEFAULT_STA_PASSWORD);
+    configuration.setWifiApSsid((char*)DEFAULT_AP_SSID);
+    configuration.setWifiApPassword((char*)DEFAULT_AP_PASSWORD);
+    configuration.setMqttServer((char*)DEFAULT_MQTT_SERVER);
+    configuration.setMqttPort(atoi(DEFAULT_MQTT_PORT));
+    configuration.setMqttDeviceName((char*)HOSTNAME);
+    configuration.write();
+    configuration.read();
+  }
+}
+
 void setup_io(){
   pinMode(D0, OUTPUT);
   pinMode(D1, OUTPUT);
@@ -79,47 +88,68 @@ void setup_wifi() {
   WiFi.persistent(false);
   WiFi.setAutoConnect(true);
   WiFi.setAutoReconnect(true);
-  WiFi.mode(WIFI_STA);
   delay(50);
 
-  WiFiMode_t radio = WiFi.getMode();
-  if ((radio == WIFI_AP) || (radio == WIFI_AP_STA )) {
+  // define which wifi mode should be used. May be added as helper function to configuration in future
+  bool enableAp = false;
+  bool enableStation = false;
+  if (configuration.isWifiStationEnabled() && configuration.isWifiStationConfigurationValid()) {
+    enableStation = true;
+  } else {
+    enableAp = true;
+  }
+  if (configuration.isWifiApEnabled()) {
+    enableAp = true;
+  }
+  if (enableAp) {
+    if (enableStation) {
+      WiFi.mode(WIFI_AP_STA);
+    } else {
+      WiFi.mode(WIFI_AP);
+    }
+  } else if (enableStation) {
+    WiFi.mode(WIFI_STA);
+  }
+
+  if (enableAp) {
     // Start generating own WiFi network
     Serial.println();
-    Serial.println("Starting WiFi hotspot");
+    Serial.println("** Starting WiFi hotspot **");
 
-    if(WiFi.softAP(host.c_str())){
-      Serial.printf("Hotspot deployed [%s]\n\r", host.c_str());
-      Serial.printf("MAC -> %s\n\r",WiFi.softAPmacAddress().c_str());
-      Serial.print("IP -> ");
-      Serial.println(WiFi.softAPIP());
+    if(WiFi.softAP(configuration.getWifiApSsid(),configuration.getWifiApPassword())){
+      Serial.printf("  SSID: %s\n\r", configuration.getWifiApSsid());
+      Serial.printf("  Password: %s\n\r",configuration.getWifiApPassword());
+      Serial.printf("  MAC: %s\n\r",WiFi.softAPmacAddress().c_str());
+      Serial.printf("  IP: %s\n\r", WiFi.softAPIP().toString().c_str());
     }
   }
 
-  if ((radio == WIFI_STA) || (radio == WIFI_AP_STA )) {
+  if (enableStation) {
     // Start connecting to a WiFi network
-    Serial.printf("Connecting to WiFi [%s]\n\r", ssid);
-    WiFi.begin(ssid, password);
+    Serial.println("** Connecting to WiFi **");
+    Serial.printf("  SSID: %s\n\r", configuration.getWifiStationSsid());
+    Serial.printf("  Password: %s\n\r",configuration.getWifiStationPassword());
+    WiFi.begin(configuration.getWifiStationSsid(),configuration.getWifiStationPassword());
   }
 
   switch (WiFi.waitForConnectResult()) {
-    // case WL_CONNECTED:
-    //   Serial.println("Connection established");
-    //   break;
+//     case WL_CONNECTED:
+//       Serial.println("  Connection established");
+//       break;
     case WL_IDLE_STATUS:
-      Serial.println("Wi-Fi is in process of changing between statuses");
+      Serial.println("  Wi-Fi is in process of changing between statuses");
       break;
     case WL_NO_SSID_AVAIL:
-      Serial.println("SSID cannot be reached");
+      Serial.println("  SSID cannot be reached");
       break;
     case WL_CONNECT_FAILED:
-      Serial.println("Incorrect password");
+      Serial.println("  Incorrect password");
       break;
     case WL_CONNECTION_LOST:
-      Serial.println("Connection lost");
+      Serial.println("  Connection lost");
       break;
     case WL_DISCONNECTED:
-      Serial.println("Module is not configured in station mode");
+      Serial.println("  Module is not configured in station mode");
       break;
   }
 }
@@ -139,29 +169,35 @@ void setup_mqtt() {
   mqttClient.onUnsubscribe(onMqttUnsubscribe);
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
-  mqttClient.setServer(mqtt_server, 1883);
-  mqttClient.setKeepAlive(15).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(host.c_str());
+  mqttClient.setServer(configuration.getMqttServer(), configuration.getMqttPort());
+  mqttClient.setKeepAlive(15).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(configuration.getMqttDeviceName());
 }
 
 WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP& event) {
-  Serial.println("WiFi connected");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println("Starting OTA service...");
+  Serial.println("** WiFi connected **");
+  Serial.printf("  MAC: %s\n\r",WiFi.macAddress().c_str());
+  Serial.printf("  IP: %s\n\r", WiFi.localIP().toString().c_str());
+
+  if (!MDNS.begin(HOSTNAME)) {
+    Serial.println("  Error setting up mDNS responder!");
+  } else {
+    Serial.println("  mDNS responder started");
+  }
+  Serial.println("  Starting OTA service...");
   ArduinoOTA.begin();
-  Serial.println("Connecting to MQTT...");
+  Serial.println("  Connecting to MQTT...");
   mqttClient.connect();
 });
 
 WiFiEventHandler disconnectedEventHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
-  Serial.println("Lost WiFi connection");
+  Serial.println("** Lost WiFi connection **");
 });
 
 void onMqttConnect() {
   Serial.println("** Connected to the broker **");
   // Once connected, publish status...
   uint16_t packetIdPub2 = mqttClient.publish(WILL_TOPIC, WILL_QOS, WILL_RETAIN, "ESPutnik online");
-  Serial.print("Publishing status at QoS 2, packetId: ");
+  Serial.print("  Publishing status at QoS 2, packetId: ");
   Serial.println(packetIdPub2);
 
   // ... and resubscribe to topics
@@ -217,6 +253,7 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   Serial.println(topic);
   Serial.print("  payload: ");
   for (int i = 0; i < length; i++) Serial.print(payload[i]);
+  Serial.println();
 
   if (!strcmp(topic,"test/reset")){
     if (!strcmp(payload,"on")) {
