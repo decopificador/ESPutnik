@@ -8,6 +8,7 @@
 #include <AsyncMqttClient.h>
 #include <Esp8266Configuration.h>
 #include <FS.h>
+#include <ESP8266WebServer.h>
 
 #define D0    16  // Wake from sleep
 #define D1    5   // I2C Bus SCL (clock)
@@ -36,16 +37,22 @@ const String host = "ESPutnik-" + String(ESP.getChipId(), HEX);
 #define HOSTNAME host.c_str()
 #define DEFAULT_STA_SSID "Musquetteer_AP"
 #define DEFAULT_STA_PASSWORD "RaspberryPi"
-#define DEFAULT_AP_SSID host.c_str()
+#define DEFAULT_AP_SSID HOSTNAME
 #define DEFAULT_AP_PASSWORD "ESPutnik"
 #define DEFAULT_MQTT_SERVER "192.168.42.1"
 #define DEFAULT_MQTT_PORT "1883"
+#define DEFAULT_MQTT_CLIENT_ID HOSTNAME
 
 void load_config(void);
 void setup_io(void);
 void setup_wifi(void);
 void setup_OTA(void);
 void setup_mqtt(void);
+void setup_httpserver(void);
+void onHttpGetRoot();
+void onHttpGetUpdate();
+void onHttpPostUpdate();
+void onHttpFileUpload();
 void onSTAConnected(WiFiEvent_t event);
 void onSTADisconnected(WiFiEvent_t event);
 void onMqttConnect(void);

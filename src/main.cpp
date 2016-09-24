@@ -6,6 +6,8 @@ bool led0=false;
 //WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
 Esp8266Configuration configuration;
 AsyncMqttClient mqttClient;
+ESP8266WebServer httpServer(80);
+const char* serverIndex = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
 
 void setup() {
   Serial.begin(115200);
@@ -28,10 +30,17 @@ void setup() {
 
   // Connect to WiFi network
   setup_wifi();
+
+  delay(5000);
+  Serial.println("** Starting Web Server **");
+  setup_httpserver();
+  httpServer.begin();
+  Serial.printf("Ready! Open http://%s/ in your browser\n\r", WiFi.localIP().toString().c_str());
 }
 
 void loop() {
   ArduinoOTA.handle();
+  httpServer.handleClient();
   yield();
   if (!digitalRead(D5)) {
     while (!digitalRead(D5));
@@ -67,7 +76,7 @@ void load_config() {
     configuration.setWifiApPassword((char*)DEFAULT_AP_PASSWORD);
     configuration.setMqttServer((char*)DEFAULT_MQTT_SERVER);
     configuration.setMqttPort(atoi(DEFAULT_MQTT_PORT));
-    configuration.setMqttDeviceName((char*)HOSTNAME);
+    configuration.setMqttDeviceName((char*)DEFAULT_MQTT_CLIENT_ID);
     configuration.write();
     configuration.read();
   }
@@ -173,6 +182,57 @@ void setup_mqtt() {
   mqttClient.setKeepAlive(15).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(configuration.getMqttDeviceName());
 }
 
+void setup_httpserver() {
+  httpServer.on("/",HTTP_GET, onHttpGetRoot);
+  httpServer.on("/update", HTTP_GET, onHttpGetUpdate);
+  httpServer.on("/update", HTTP_POST, onHttpPostUpdate, onHttpFileUpload);
+  MDNS.addService("http", "tcp", 80);
+}
+
+void onHttpGetRoot() {
+  httpServer.sendHeader("Connection", "close");
+  httpServer.sendHeader("Access-Control-Allow-Origin", "*");
+  httpServer.send(200, "text/plain", "hello from ESPutnik!");
+}
+
+void onHttpGetUpdate() {
+  httpServer.sendHeader("Connection", "close");
+  httpServer.sendHeader("Access-Control-Allow-Origin", "*");
+  httpServer.send(200, "text/html", serverIndex);
+}
+
+void onHttpPostUpdate() {
+  httpServer.sendHeader("Connection", "close");
+  httpServer.sendHeader("Access-Control-Allow-Origin", "*");
+  httpServer.send(200, "text/plain", (Update.hasError())?"FAIL":"OK");
+  ESP.restart();
+}
+
+void onHttpFileUpload(){
+  HTTPUpload& upload = httpServer.upload();
+  if(upload.status == UPLOAD_FILE_START){
+    Serial.setDebugOutput(true);
+    WiFiUDP::stopAll();
+    Serial.printf("Update: %s\n\r", upload.filename.c_str());
+    uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    if(!Update.begin(maxSketchSpace)){//start with max available size
+      Update.printError(Serial);
+    }
+  } else if(upload.status == UPLOAD_FILE_WRITE){
+    if(Update.write(upload.buf, upload.currentSize) != upload.currentSize){
+      Update.printError(Serial);
+    }
+  } else if(upload.status == UPLOAD_FILE_END){
+    if(Update.end(true)){ //true to set the size to the current progress
+      Serial.printf("\n\rUpdate Success: %u\n\rRebooting...\n\r", upload.totalSize);
+    } else {
+      Update.printError(Serial);
+    }
+    Serial.setDebugOutput(false);
+  }
+  yield();
+}
+
 WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP& event) {
   Serial.println("** WiFi connected **");
   Serial.printf("  MAC: %s\n\r",WiFi.macAddress().c_str());
@@ -191,6 +251,7 @@ WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEv
 
 WiFiEventHandler disconnectedEventHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
   Serial.println("** Lost WiFi connection **");
+  Serial.println("  Wait for reconnect...");
 });
 
 void onMqttConnect() {
