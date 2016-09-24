@@ -7,7 +7,6 @@ bool led0=false;
 Esp8266Configuration configuration;
 AsyncMqttClient mqttClient;
 ESP8266WebServer httpServer(80);
-const char* serverIndex = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
 
 void setup() {
   Serial.begin(115200);
@@ -186,19 +185,40 @@ void setup_httpserver() {
   httpServer.on("/",HTTP_GET, onHttpGetRoot);
   httpServer.on("/update", HTTP_GET, onHttpGetUpdate);
   httpServer.on("/update", HTTP_POST, onHttpPostUpdate, onHttpFileUpload);
+  httpServer.onNotFound(onHttpNotFound);
   MDNS.addService("http", "tcp", 80);
 }
 
 void onHttpGetRoot() {
+  char htmlIndex[400];
+  snprintf ( htmlIndex, 400,
+  "<html>\
+  <head>\
+    <meta http-equiv='refresh' content='5'/>\
+    <title>ESP8266 Demo</title>\
+    <style>\
+      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+    </style>\
+  </head>\
+  <body>\
+    <h1>Hello from ESPutnik node!</h1>\
+    <p>Device ID: %06X</p>\
+    <p>Sketch size: %d / %d</p>\
+    <p>Free heap: %d</p>\
+  </body>\
+  </html>",
+    ESP.getChipId(), ESP.getSketchSize(), ESP.getFreeSketchSpace(), ESP.getFreeHeap()
+  );
   httpServer.sendHeader("Connection", "close");
   httpServer.sendHeader("Access-Control-Allow-Origin", "*");
-  httpServer.send(200, "text/plain", "hello from ESPutnik!");
+  httpServer.send(200, "text/html", htmlIndex);
 }
 
 void onHttpGetUpdate() {
+  const char* htmlUpload = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><br><br><input type='submit' value='Update'></form>";
   httpServer.sendHeader("Connection", "close");
   httpServer.sendHeader("Access-Control-Allow-Origin", "*");
-  httpServer.send(200, "text/html", serverIndex);
+  httpServer.send(200, "text/html", htmlUpload);
 }
 
 void onHttpPostUpdate() {
@@ -231,6 +251,21 @@ void onHttpFileUpload(){
     Serial.setDebugOutput(false);
   }
   yield();
+}
+
+void onHttpNotFound(){
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += httpServer.uri();
+  message += "\nMethod: ";
+  message += (httpServer.method() == HTTP_GET)?"GET":"POST";
+  message += "\nArguments: ";
+  message += httpServer.args();
+  message += "\n";
+  for (uint8_t i=0; i<httpServer.args(); i++){
+    message += " " + httpServer.argName(i) + ": " + httpServer.arg(i) + "\n";
+  }
+  httpServer.send(404, "text/plain", message);
 }
 
 WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP& event) {
