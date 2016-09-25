@@ -31,7 +31,11 @@ void setup() {
   // Connect to WiFi network
   setup_wifi();
 
-  delay(5000);
+  delay(2000);
+  Serial.println("** Starting OTA service **");
+  ArduinoOTA.begin();
+
+  delay(2000);
   Serial.println("** Starting Web Server **");
   setup_httpserver();
   httpServer.begin();
@@ -76,12 +80,15 @@ void load_config() {
   }else{
     Serial.println("Configuration file error, defaults loaded.");
     // write default configuration
+    configuration.setWifiStationEnabled(false);
     configuration.setWifiStationSsid((char*)DEFAULT_STA_SSID);
     configuration.setWifiStationPassword((char*)DEFAULT_STA_PASSWORD);
+    configuration.setWifiApEnabled(true);
     configuration.setWifiApSsid((char*)DEFAULT_AP_SSID);
     configuration.setWifiApPassword((char*)DEFAULT_AP_PASSWORD);
+    configuration.setMqttEnabled(false);
     configuration.setMqttServer((char*)DEFAULT_MQTT_SERVER);
-    configuration.setMqttPort(atoi(DEFAULT_MQTT_PORT));
+    configuration.setMqttPort((char*)DEFAULT_MQTT_PORT);
     configuration.setMqttDeviceName((char*)DEFAULT_MQTT_CLIENT_ID);
     configuration.write();
     configuration.read();
@@ -111,11 +118,8 @@ void setup_wifi() {
   if (configuration.isWifiStationEnabled() && configuration.isWifiStationConfigurationValid()) {
     Serial.println("Station mode active");
     enableStation = true;
-  } else {
-    Serial.println("Fallback Access Point mode active");
-    enableAp = true;
   }
-  if (configuration.isWifiApEnabled()) {
+  if (configuration.isWifiApEnabled() && configuration.isWifiApConfigurationValid()) {
     Serial.println("Access Point mode active");
     enableAp = true;
   }
@@ -127,6 +131,8 @@ void setup_wifi() {
     }
   } else if (enableStation) {
     WiFi.mode(WIFI_STA);
+  } else {
+    WiFi.mode(WIFI_OFF);
   }
 
   if (enableAp) {
@@ -142,7 +148,7 @@ void setup_wifi() {
     }
   }
 
-  if (enableStation) {
+  if (true) {
     // Start connecting to a WiFi network
     Serial.println("** Connecting to WiFi **");
     Serial.printf("  SSID: %s\n\r", configuration.getWifiStationSsid());
@@ -173,6 +179,7 @@ void setup_wifi() {
 }
 
 void setup_OTA() {
+  ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.onStart(onOTAStart);
   ArduinoOTA.onEnd(onOTAEnd);
   ArduinoOTA.onProgress(onOTAProgress);
@@ -187,7 +194,7 @@ void setup_mqtt() {
   mqttClient.onUnsubscribe(onMqttUnsubscribe);
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
-  mqttClient.setServer(configuration.getMqttServer(), configuration.getMqttPort());
+  mqttClient.setServer(configuration.getMqttServer(), atoi(configuration.getMqttPort()));
   mqttClient.setKeepAlive(15).setWill(WILL_TOPIC, WILL_QOS, WILL_RETAIN, WILL_MSG).setClientId(configuration.getMqttDeviceName());
 }
 
@@ -288,10 +295,10 @@ WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEv
   } else {
     Serial.println("  mDNS responder started");
   }
-  Serial.println("  Starting OTA service...");
-  ArduinoOTA.begin();
-  Serial.println("  Connecting to MQTT...");
-  mqttClient.connect();
+  if (configuration.isMqttEnabled()) {
+    Serial.println("  Connecting to MQTT...");
+    mqttClient.connect();
+  }
 });
 
 WiFiEventHandler disconnectedEventHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
