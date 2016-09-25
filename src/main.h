@@ -66,5 +66,7 @@ void onOTAStart(void);
 void onOTAEnd(void);
 void onOTAProgress(unsigned int progress, unsigned int total);
 void onOTAError(ota_error_t error);
+void onWifiStationConnected(const WiFiEventStationModeGotIP& event);
+void onWifiStationDisconnected(const WiFiEventStationModeDisconnected& event);
 
 #endif  // MAIN_H_

@@ -3,7 +3,7 @@
 
 bool led0=false;
 
-//WiFiEventHandler gotIpEventHandler, disconnectedEventHandler;
+WiFiEventHandler connectedEventHandler, disconnectedEventHandler;
 Esp8266Configuration configuration;
 AsyncMqttClient mqttClient;
 ESP8266WebServer httpServer(80);
@@ -112,6 +112,9 @@ void setup_wifi() {
   WiFi.setAutoReconnect(true);
   delay(50);
 
+  connectedEventHandler = WiFi.onStationModeGotIP(onWifiStationConnected);
+  disconnectedEventHandler = WiFi.onStationModeDisconnected(onWifiStationDisconnected);
+
   // define which wifi mode should be used. May be added as helper function to configuration in future
   bool enableAp = false;
   bool enableStation = false;
@@ -148,7 +151,7 @@ void setup_wifi() {
     }
   }
 
-  if (true) {
+  if (enableStation) {
     // Start connecting to a WiFi network
     Serial.println("** Connecting to WiFi **");
     Serial.printf("  SSID: %s\n\r", configuration.getWifiStationSsid());
@@ -285,7 +288,7 @@ void onHttpNotFound(){
   httpServer.send(404, "text/plain", message);
 }
 
-WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEventStationModeGotIP& event) {
+void onWifiStationConnected(const WiFiEventStationModeGotIP& event) {
   Serial.println("** WiFi connected **");
   Serial.printf("  MAC: %s\n\r",WiFi.macAddress().c_str());
   Serial.printf("  IP: %s\n\r", WiFi.localIP().toString().c_str());
@@ -299,12 +302,12 @@ WiFiEventHandler connectedEventHandler = WiFi.onStationModeGotIP([](const WiFiEv
     Serial.println("  Connecting to MQTT...");
     mqttClient.connect();
   }
-});
+};
 
-WiFiEventHandler disconnectedEventHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event) {
+void onWifiStationDisconnected(const WiFiEventStationModeDisconnected& event) {
   Serial.println("** Lost WiFi connection **");
   Serial.println("  Wait for reconnect...");
-});
+};
 
 void onMqttConnect() {
   Serial.println("** Connected to the broker **");
