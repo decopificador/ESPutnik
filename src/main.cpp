@@ -4,7 +4,7 @@
 bool led0=false;
 
 WiFiEventHandler connectedEventHandler, disconnectedEventHandler;
-Esp8266Configuration configuration;
+Configuration configuration;
 AsyncMqttClient mqttClient;
 ESP8266WebServer httpServer(80);
 FtpServer ftpService;

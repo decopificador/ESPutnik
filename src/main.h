@@ -6,7 +6,7 @@
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
 #include <AsyncMqttClient.h>
-#include <Esp8266Configuration.h>
+#include <Configuration.h>
 #include <FS.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266FtpServer.h>
