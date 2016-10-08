@@ -11,6 +11,14 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266FtpServer.h>
 
+#define IN0   D0
+#define IN1   D3
+#define IN2   D4
+#define OUT0  D5
+#define OUT1  D6
+#define OUT2  D7
+#define OUT3  D8
+
 #define D0    16  // Wake from sleep
 #define D1    5   // I2C Bus SCL (clock)
 #define D2    4   // I2C Bus SDA (data)

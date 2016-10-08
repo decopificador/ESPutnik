@@ -52,8 +52,8 @@ void loop() {
   httpServer.handleClient();
   ftpService.handleFTP();
   yield();
-  if (!digitalRead(D5)) {
-    while (!digitalRead(D5));
+  if (!digitalRead(IN0)) {
+    while (!digitalRead(IN0));
     led0=!led0;
     if (led0) {
       mqttClient.publish("test/led0", 0, false, "on");
@@ -61,8 +61,8 @@ void loop() {
       mqttClient.publish("test/led0", 0, false, "off");
     }
   }
-  if (!digitalRead(D6)) {
-    while (!digitalRead(D6));
+  if (!digitalRead(IN1)) {
+    while (!digitalRead(IN1));
     mqttClient.publish("test/led0", 0, false, "off");
     mqttClient.publish("test/led1", 0, false, "off");
     mqttClient.publish("test/led2", 0, false, "off");
@@ -80,7 +80,7 @@ void load_config() {
   }else{
     Serial.println("Configuration file error, defaults loaded.");
     // write default configuration
-    configuration.setWifiStationEnabled(false);
+    configuration.setWifiStationEnabled(true);
     configuration.setWifiStationSsid((char*)DEFAULT_STA_SSID);
     configuration.setWifiStationPassword((char*)DEFAULT_STA_PASSWORD);
     configuration.setWifiApEnabled(true);
@@ -96,12 +96,21 @@ void load_config() {
 }
 
 void setup_io(){
-  pinMode(D0, OUTPUT);
+  pinMode(D0, INPUT);
   pinMode(D1, OUTPUT);
+  digitalWrite(D1, LOW);
   pinMode(D2, OUTPUT);
-  pinMode(D3, OUTPUT);
-  pinMode(D5, INPUT);
-  pinMode(D6, INPUT);
+  digitalWrite(D2, LOW);
+  pinMode(D3, INPUT);
+  pinMode(D4, INPUT);
+  pinMode(D5, OUTPUT);
+  digitalWrite(D5, LOW);
+  pinMode(D6, OUTPUT);
+  digitalWrite(D6, LOW);
+  pinMode(D7, OUTPUT);
+  digitalWrite(D7, LOW);
+  pinMode(D8, OUTPUT);
+  digitalWrite(D8, LOW);
   delay(50);
 }
 
@@ -379,36 +388,36 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     }
   }else if (!strcmp(topic,"test/led0")){
     if (!strcmp(payload,"on")) {
-      digitalWrite(D0, HIGH);
+      digitalWrite(OUT0, HIGH);
       mqttClient.publish("test/text", 0, false, "Turning led0 ON");
       led0=true;
     } else {
-      digitalWrite(D0, LOW);
+      digitalWrite(OUT0, LOW);
       mqttClient.publish("test/text", 0, false, "Turning led0 OFF");
       led0=false;
     }
   }else if (!strcmp(topic,"test/led1")){
     if (!strcmp(payload,"on")) {
-      digitalWrite(D1, HIGH);
+      digitalWrite(OUT1, HIGH);
       mqttClient.publish("test/text", 0, false, "Turning led1 ON");
     } else {
-      digitalWrite(D1, LOW);
+      digitalWrite(OUT1, LOW);
       mqttClient.publish("test/text", 0, false, "Turning led1 OFF");
     }
   }else if (!strcmp(topic,"test/led2")){
     if (!strcmp(payload,"on")) {
-      digitalWrite(D2, HIGH);
+      digitalWrite(OUT2, HIGH);
       mqttClient.publish("test/text", 0, false, "Turning led2 ON");
     } else {
-      digitalWrite(D2, LOW);
+      digitalWrite(OUT2, LOW);
       mqttClient.publish("test/text", 0, false, "Turning led2 OFF");
     }
   }else if (!strcmp(topic,"test/led3")){
     if (!strcmp(payload,"on")) {
-      digitalWrite(D3, HIGH);
+      digitalWrite(OUT3, HIGH);
       mqttClient.publish("test/text", 0, false, "Turning led3 ON");
     } else {
-      digitalWrite(D3, LOW);
+      digitalWrite(OUT3, LOW);
       mqttClient.publish("test/text", 0, false, "Turning led3 OFF");
     }
   }
