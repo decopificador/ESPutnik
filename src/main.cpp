@@ -56,17 +56,17 @@ void loop() {
     while (!digitalRead(IN0));
     led0=!led0;
     if (led0) {
-      mqttClient.publish("test/led0", 0, false, "on");
+      mqttClient.publish("test/led0/set", 0, false, "ON");
     } else {
-      mqttClient.publish("test/led0", 0, false, "off");
+      mqttClient.publish("test/led0/set", 0, false, "OFF");
     }
   }
   if (!digitalRead(IN1)) {
     while (!digitalRead(IN1));
-    mqttClient.publish("test/led0", 0, false, "off");
-    mqttClient.publish("test/led1", 0, false, "off");
-    mqttClient.publish("test/led2", 0, false, "off");
-    mqttClient.publish("test/led3", 0, false, "off");
+    mqttClient.publish("test/led0/set", 0, false, "OFF");
+    mqttClient.publish("test/led1/set", 0, false, "OFF");
+    mqttClient.publish("test/led2/set", 0, false, "OFF");
+    mqttClient.publish("test/led3/set", 0, false, "OFF");
   }
 }
 
@@ -326,10 +326,10 @@ void onMqttConnect() {
   Serial.println(packetIdPub2);
 
   // ... and resubscribe to topics
-  mqttClient.subscribe("test/led0",0);
-  mqttClient.subscribe("test/led1",0);
-  mqttClient.subscribe("test/led2",0);
-  mqttClient.subscribe("test/led3",0);
+  mqttClient.subscribe("test/led0/set",0);
+  mqttClient.subscribe("test/led1/set",0);
+  mqttClient.subscribe("test/led2/set",0);
+  mqttClient.subscribe("test/led3/set",0);
   mqttClient.subscribe("test/reset",0);
 }
 
@@ -381,43 +381,51 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   Serial.println();
 
   if (!strcmp(topic,"test/reset")){
-    if (!strcmp(payload,"on")) {
+    if (!strcmp(payload,"ON")) {
       mqttClient.publish("test/text", 0, false, "Reseting ESPutnik");
-      mqttClient.publish("test/reset", 0, false, "off");
+      mqttClient.publish("test/reset", 0, false, "OFF");
       ESP.reset();
     }
-  }else if (!strcmp(topic,"test/led0")){
-    if (!strcmp(payload,"on")) {
+  }else if (!strcmp(topic,"test/led0/set")){
+    if (!strcmp(payload,"ON")) {
       digitalWrite(OUT0, HIGH);
+      mqttClient.publish("test/led0/get", 0, false, "ON");
       mqttClient.publish("test/text", 0, false, "Turning led0 ON");
       led0=true;
     } else {
       digitalWrite(OUT0, LOW);
+      mqttClient.publish("test/led0/get", 0, false, "OFF");
       mqttClient.publish("test/text", 0, false, "Turning led0 OFF");
       led0=false;
     }
-  }else if (!strcmp(topic,"test/led1")){
-    if (!strcmp(payload,"on")) {
+  }else if (!strcmp(topic,"test/led1/set")){
+    if (!strcmp(payload,"ON")) {
       digitalWrite(OUT1, HIGH);
+      mqttClient.publish("test/led1/get", 0, false, "ON");
       mqttClient.publish("test/text", 0, false, "Turning led1 ON");
     } else {
       digitalWrite(OUT1, LOW);
+      mqttClient.publish("test/led1/get", 0, false, "OFF");
       mqttClient.publish("test/text", 0, false, "Turning led1 OFF");
     }
-  }else if (!strcmp(topic,"test/led2")){
-    if (!strcmp(payload,"on")) {
+  }else if (!strcmp(topic,"test/led2/set")){
+    if (!strcmp(payload,"ON")) {
       digitalWrite(OUT2, HIGH);
+      mqttClient.publish("test/led2/get", 0, false, "ON");
       mqttClient.publish("test/text", 0, false, "Turning led2 ON");
     } else {
       digitalWrite(OUT2, LOW);
+      mqttClient.publish("test/led2/get", 0, false, "OFF");
       mqttClient.publish("test/text", 0, false, "Turning led2 OFF");
     }
-  }else if (!strcmp(topic,"test/led3")){
-    if (!strcmp(payload,"on")) {
+  }else if (!strcmp(topic,"test/led3/set")){
+    if (!strcmp(payload,"ON")) {
       digitalWrite(OUT3, HIGH);
+      mqttClient.publish("test/led3/get", 0, false, "ON");
       mqttClient.publish("test/text", 0, false, "Turning led3 ON");
     } else {
       digitalWrite(OUT3, LOW);
+      mqttClient.publish("test/led3/get", 0, false, "OFF");
       mqttClient.publish("test/text", 0, false, "Turning led3 OFF");
     }
   }
