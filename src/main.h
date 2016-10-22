@@ -1,23 +1,8 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
-#include <WiFiUdp.h>
-#include <AsyncMqttClient.h>
-#include <Configuration.h>
-#include <FS.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266FtpServer.h>
-
-#define IN0   D0
-#define IN1   D3
-#define IN2   D4
-#define OUT0  D5
-#define OUT1  D6
-#define OUT2  D7
-#define OUT3  D8
+#include <Homie.h>
 
 #define D0    16  // Wake from sleep
 #define D1    5   // I2C Bus SCL (clock)
@@ -37,44 +22,17 @@
 #define SDD3  10  // SDIO data3
 #define SDCMD 11  // SDIO command
 
-#define WILL_TOPIC "test/will"
-#define WILL_QOS 1
-#define WILL_RETAIN true
-#define WILL_MSG "Connection lost!"
-
 const String host = "ESPutnik-" + String(ESP.getChipId(), HEX);
 #define HOSTNAME host.c_str()
-#define DEFAULT_STA_SSID "Musquetteer_AP"
-#define DEFAULT_STA_PASSWORD "RaspberryPi"
-#define DEFAULT_AP_SSID HOSTNAME
-#define DEFAULT_AP_PASSWORD "ESPutnik"
-#define DEFAULT_MQTT_SERVER "192.168.42.1"
-#define DEFAULT_MQTT_PORT "1883"
-#define DEFAULT_MQTT_CLIENT_ID HOSTNAME
 
-void load_config(void);
 void setup_io(void);
-void setup_wifi(void);
 void setup_OTA(void);
-void setup_mqtt(void);
-void setup_httpserver(void);
-void onHttpGetRoot(void);
-void onHttpGetUpdate(void);
-void onHttpPostUpdate(void);
-void onHttpFileUpload(void);
-void onHttpNotFound(void);
-void onMqttConnect(void);
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
-void onMqttSubscribe(uint16_t packetId, uint8_t qos);
-void onMqttUnsubscribe(uint16_t packetId);
-void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total);
-void onMqttPublish(uint16_t packetId);
-void onMqttPublish(uint16_t packetId);
+void setup_homie(void);
 void onOTAStart(void);
 void onOTAEnd(void);
 void onOTAProgress(unsigned int progress, unsigned int total);
 void onOTAError(ota_error_t error);
-void onWifiStationConnected(const WiFiEventStationModeGotIP& event);
-void onWifiStationDisconnected(const WiFiEventStationModeDisconnected& event);
+bool onLightStatus(const HomieRange& range, const String& value);
+void onHomieEvent(HomieEvent event);
 
 #endif  // MAIN_H_

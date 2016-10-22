@@ -1,0 +1,16 @@
+{
+  "name": "ESPutnik homie device",
+  "wifi": {
+    "ssid": "Musquetteer_AP",
+    "password": "RaspberryPi"
+  },
+  "mqtt": {
+    "host": "192.168.42.1",
+    "port": 1883,
+    "base_topic": "ESPutnik/",
+    "auth": false
+  },
+  "ota": {
+    "enabled": false
+  }
+}
