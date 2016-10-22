@@ -4,6 +4,7 @@
 
 bool led0=false;
 
+HomieNode outNode("out", "switch");
 HomieNode lightNode("light", "switch");
 HomieNode temperatureNode("temperature", "temperature");
 const int TEMPERATURE_INTERVAL = 30;
@@ -11,6 +12,13 @@ unsigned long lastTemperatureSent = 0;
 float temperature;
 
 void setupHandler() {
+  lightNode.advertise("value").settable(onLightStatus);
+  outNode.advertise("5").settable();
+  outNode.advertise("6").settable();
+  outNode.advertise("7").settable();
+  outNode.advertise("8").settable();
+  temperatureNode.advertise("unit");
+  temperatureNode.advertise("value");
   temperatureNode.setProperty("unit").send("c");
 }
 
@@ -52,8 +60,7 @@ void loop() {
 
 void setup_io(){
   pinMode(D0, INPUT);
-  pinMode(D1, OUTPUT);
-  digitalWrite(D1, LOW);
+  pinMode(D1, INPUT);
   pinMode(D2, INPUT);
   pinMode(D3, INPUT);
   pinMode(D4, OUTPUT);
@@ -84,9 +91,7 @@ void setup_homie() {
   Homie.setLedPin(D4, HIGH);
   Homie.onEvent(onHomieEvent);
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
-  lightNode.advertise("value").settable(onLightStatus);
-  temperatureNode.advertise("unit");
-  temperatureNode.advertise("value");
+  Homie.setGlobalInputHandler(globalInputHandler);
   Homie.setup();
 }
 
@@ -123,11 +128,11 @@ bool onLightStatus(const HomieRange& range, const String& value) {
   Serial.println("Value: ");
   Serial.println(value);
   if (!strcmp(value.c_str(),"ON")) {
-    digitalWrite(D5, HIGH);
+    digitalWrite(D4, LOW);
     lightNode.setProperty("value").send("ON");
     Serial.println("Light is on");
   } else if (!strcmp(value.c_str(),"OFF")) {
-    digitalWrite(D5, LOW);
+    digitalWrite(D4, HIGH);
     lightNode.setProperty("value").send("OFF");
     Serial.println("Light is off");
   } else {
@@ -172,4 +177,17 @@ void onHomieEvent(HomieEvent event) {
       Serial.println("MQTT disconnected");
       break;
   }
+}
+
+bool globalInputHandler(const HomieNode& node, const String& property, const HomieRange& range, const String& value) {
+  Serial << "Received on node " << node.getId() << ": " << property << " = " << value << endl;
+  if (node.getId() == "out") {
+    if (value != "ON" && value != "OFF") return false;
+    bool set = (value == "ON");
+    uint8_t i = atoi(property.c_str());
+    digitalWrite(D[i], set?HIGH:LOW);
+    outNode.setProperty(property.c_str()).send(set?"ON":"OFF");
+    return true;
+  }
+  return false;
 }
