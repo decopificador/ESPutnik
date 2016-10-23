@@ -3,7 +3,11 @@
 #include "main.h"
 
 HomieNode outNode("out", "switch");
+HomieNode inNode("in", "switch");
 HomieNode adcNode("adc", "analog");
+HomieNode pwmNode("pwm", "analog");
+HomieNode i2cNode("i2c", "bus");
+HomieNode owNode("ow", "bus");
 HomieNode lightNode("light", "switch");
 const int TEMPERATURE_INTERVAL = 30;
 unsigned long lastTemperatureSent = 0;
