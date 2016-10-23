@@ -2,14 +2,13 @@
 #include <Homie.h>
 #include "main.h"
 
-bool led0=false;
-
 HomieNode outNode("out", "switch");
+HomieNode adcNode("adc", "analog");
 HomieNode lightNode("light", "switch");
-HomieNode temperatureNode("temperature", "temperature");
 const int TEMPERATURE_INTERVAL = 30;
 unsigned long lastTemperatureSent = 0;
 float temperature;
+int adc;
 
 void setupHandler() {
   lightNode.advertise("value").settable(onLightStatus);
@@ -17,18 +16,21 @@ void setupHandler() {
   outNode.advertise("6").settable();
   outNode.advertise("7").settable();
   outNode.advertise("8").settable();
-  temperatureNode.advertise("unit");
-  temperatureNode.advertise("value");
-  temperatureNode.setProperty("unit").send("c");
+  adcNode.advertise("0");
+  adcNode.advertise("unit");
+  adcNode.advertise("temp");
+  adcNode.setProperty("unit").send("°C");
 }
 
 void loopHandler() {
   if (millis() - lastTemperatureSent >= TEMPERATURE_INTERVAL * 1000UL || lastTemperatureSent == 0) {
-    temperature = analogRead(A0)/9.76;
+    adc = analogRead(A0);
+    adcNode.setProperty("0").send(String(adc));
+    temperature = adc/9.76;
     Serial.print("Temperature: ");
     Serial.print(temperature);
     Serial.println(" °C");
-    temperatureNode.setProperty("value").send(String(temperature));
+    adcNode.setProperty("temp").send(String(temperature));
     lastTemperatureSent = millis();
   }
 }
