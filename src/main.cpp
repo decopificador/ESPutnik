@@ -16,6 +16,11 @@ int adc;
 
 void setupHandler() {
   lightNode.advertise("value").settable(onLightStatus);
+  inNode.advertise("0").settable();
+  inNode.advertise("1").settable();
+  inNode.advertise("2").settable();
+  inNode.advertise("3").settable();
+  inNode.advertise("4").settable();
   outNode.advertise("5").settable();
   outNode.advertise("6").settable();
   outNode.advertise("7").settable();
