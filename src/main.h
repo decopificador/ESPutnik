@@ -33,11 +33,12 @@ void onOTAProgress(unsigned int progress, unsigned int total);
 void onOTAError(ota_error_t error);
 void onHomieEvent(HomieEvent event);
 bool outNodeHandler(const String& property, const HomieRange& range, const String& value);
+bool pwnNodeHandler(const String& property, const HomieRange& range, const String& value);
 
 static HomieNode outNode("out", "digital", outNodeHandler);
 static HomieNode inNode("in", "digital");
 static HomieNode adcNode("adc", "analog");
-static HomieNode pwmNode("pwm", "analog");
+static HomieNode pwmNode("pwm", "analog", pwnNodeHandler);
 static HomieNode i2cNode("i2c", "bus");
 static HomieNode owNode("ow", "bus");
 static HomieNode lightNode("light", "switch");

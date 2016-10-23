@@ -21,6 +21,10 @@ void setupHandler() {
   adcNode.advertise("unit");
   adcNode.advertise("temp");
   adcNode.setProperty("unit").send("°C");
+  pwmNode.advertise("5").settable();
+  pwmNode.advertise("6").settable();
+  pwmNode.advertise("7").settable();
+  pwmNode.advertise("8").settable();
 }
 
 void loopHandler() {
@@ -171,8 +175,13 @@ void onHomieEvent(HomieEvent event) {
 bool outNodeHandler(const String& property, const HomieRange& range, const String& value){
   if (value != "ON" && value != "OFF") return false;
   bool set = (value == "ON");
-  uint8_t i = atoi(property.c_str());
-  digitalWrite(D[i], set?HIGH:LOW);
+  digitalWrite(D[property.toInt()], set?HIGH:LOW);
   outNode.setProperty(property.c_str()).send(set?"ON":"OFF");
+  return true;
+}
+
+bool pwnNodeHandler(const String& property, const HomieRange& range, const String& value){
+  uint8_t set = (value=="ON") ? 100 : (value.toInt()*255/100);
+  analogWrite(D[property.toInt()], set);
   return true;
 }
