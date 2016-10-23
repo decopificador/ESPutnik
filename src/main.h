@@ -6,8 +6,18 @@
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
 #include <AsyncMqttClient.h>
-#include <Esp8266Configuration.h>
+#include <Configuration.h>
 #include <FS.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266FtpServer.h>
+
+#define IN0   D0
+#define IN1   D3
+#define IN2   D4
+#define OUT0  D5
+#define OUT1  D6
+#define OUT2  D7
+#define OUT3  D8
 
 #define D0    16  // Wake from sleep
 #define D1    5   // I2C Bus SCL (clock)
@@ -32,22 +42,30 @@
 #define WILL_RETAIN true
 #define WILL_MSG "Connection lost!"
 
-const String host = "ESPutnik-" + String(ESP.getChipId(), HEX);
+const String chipID = String(ESP.getChipId(), HEX);
+const String flashID = String(ESP.getFlashChipId(), HEX);
+const String devID = chipID + flashID.substring(4);
+const String host = "ESPutnik-" + devID;
 #define HOSTNAME host.c_str()
 #define DEFAULT_STA_SSID "Musquetteer_AP"
 #define DEFAULT_STA_PASSWORD "RaspberryPi"
-#define DEFAULT_AP_SSID host.c_str()
+#define DEFAULT_AP_SSID HOSTNAME
 #define DEFAULT_AP_PASSWORD "ESPutnik"
 #define DEFAULT_MQTT_SERVER "192.168.42.1"
 #define DEFAULT_MQTT_PORT "1883"
+#define DEFAULT_MQTT_CLIENT_ID HOSTNAME
 
 void load_config(void);
 void setup_io(void);
 void setup_wifi(void);
 void setup_OTA(void);
 void setup_mqtt(void);
-void onSTAConnected(WiFiEvent_t event);
-void onSTADisconnected(WiFiEvent_t event);
+void setup_httpserver(void);
+void onHttpGetRoot(void);
+void onHttpGetUpdate(void);
+void onHttpPostUpdate(void);
+void onHttpFileUpload(void);
+void onHttpNotFound(void);
 void onMqttConnect(void);
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason);
 void onMqttSubscribe(uint16_t packetId, uint8_t qos);
@@ -59,5 +77,7 @@ void onOTAStart(void);
 void onOTAEnd(void);
 void onOTAProgress(unsigned int progress, unsigned int total);
 void onOTAError(ota_error_t error);
+void onWifiStationConnected(const WiFiEventStationModeGotIP& event);
+void onWifiStationDisconnected(const WiFiEventStationModeDisconnected& event);
 
 #endif  // MAIN_H_

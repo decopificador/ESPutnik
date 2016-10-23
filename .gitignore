@@ -2,3 +2,6 @@
 .clang_complete
 .gcc-flags.json
 .piolibdeps
+lib/ArduinoOTA
+lib/ESP8266mDNS
+lib/ESP8266WiFi
