@@ -42,7 +42,10 @@
 #define WILL_RETAIN true
 #define WILL_MSG "Connection lost!"
 
-const String host = "ESPutnik-" + String(ESP.getChipId(), HEX);
+const String chipID = String(ESP.getChipId(), HEX);
+const String flashID = String(ESP.getFlashChipId(), HEX);
+const String devID = chipID + flashID.substring(4);
+const String host = "ESPutnik-" + devID;
 #define HOSTNAME host.c_str()
 #define DEFAULT_STA_SSID "Musquetteer_AP"
 #define DEFAULT_STA_PASSWORD "RaspberryPi"
