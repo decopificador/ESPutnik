@@ -23,8 +23,6 @@
 #define SDCMD 11  // SDIO command
 
 static const uint8_t D[]   = {D0,D1,D2,D3,D4,D5,D6,D7,D8,D9,D10};
-static const String host = "ESPutnik-" + String(ESP.getChipId(), HEX);
-#define HOSTNAME host.c_str()
 
 void setup_io(void);
 void setup_OTA(void);
@@ -33,8 +31,15 @@ void onOTAStart(void);
 void onOTAEnd(void);
 void onOTAProgress(unsigned int progress, unsigned int total);
 void onOTAError(ota_error_t error);
-bool onLightStatus(const HomieRange& range, const String& value);
 void onHomieEvent(HomieEvent event);
-bool globalInputHandler(const HomieNode& node, const String& property, const HomieRange& range, const String& value);
+bool outNodeHandler(const String& property, const HomieRange& range, const String& value);
+
+static HomieNode outNode("out", "digital", outNodeHandler);
+static HomieNode inNode("in", "digital");
+static HomieNode adcNode("adc", "analog");
+static HomieNode pwmNode("pwm", "analog");
+static HomieNode i2cNode("i2c", "bus");
+static HomieNode owNode("ow", "bus");
+static HomieNode lightNode("light", "switch");
 
 #endif  // MAIN_H_

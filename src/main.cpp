@@ -1,26 +1,18 @@
 #include <Arduino.h>
-#include <Homie.h>
 #include "main.h"
 
-HomieNode outNode("out", "switch");
-HomieNode inNode("in", "switch");
-HomieNode adcNode("adc", "analog");
-HomieNode pwmNode("pwm", "analog");
-HomieNode i2cNode("i2c", "bus");
-HomieNode owNode("ow", "bus");
-HomieNode lightNode("light", "switch");
 const int TEMPERATURE_INTERVAL = 30;
 unsigned long lastTemperatureSent = 0;
 float temperature;
 int adc;
+bool lastInState[4], inState[4];
 
 void setupHandler() {
-  lightNode.advertise("value").settable(onLightStatus);
-  inNode.advertise("0").settable();
-  inNode.advertise("1").settable();
-  inNode.advertise("2").settable();
-  inNode.advertise("3").settable();
-  inNode.advertise("4").settable();
+  inNode.advertise("0");
+  inNode.advertise("1");
+  inNode.advertise("2");
+  inNode.advertise("3");
+  inNode.advertise("4");
   outNode.advertise("5").settable();
   outNode.advertise("6").settable();
   outNode.advertise("7").settable();
@@ -32,6 +24,13 @@ void setupHandler() {
 }
 
 void loopHandler() {
+  for (uint8_t i = 0; i < 4; i++) {
+    inState[i] = digitalRead(D[i]);
+    if (lastInState[i] != inState[i]) {
+      inNode.setProperty(String(i)).send(inState[i]?"OPEN":"CLOSED");
+      lastInState[i] = inState[i];
+    }
+  }
   if (millis() - lastTemperatureSent >= TEMPERATURE_INTERVAL * 1000UL || lastTemperatureSent == 0) {
     adc = analogRead(A0);
     adcNode.setProperty("0").send(String(adc));
@@ -47,21 +46,19 @@ void loopHandler() {
 void setup() {
   Serial.begin(115200);
   while(!Serial);
-  Serial.printf("\n\n\rHostname: %s\n\r",HOSTNAME);
+  Serial.printf("\n\n\rBooting...\n\r");
 
   // Configure IO pins
   setup_io();
 
   // Set up OTA updates
   setup_OTA();
-
   Serial.println("** Starting OTA service **");
   ArduinoOTA.begin();
   delay(2000);
 
   // Set up Homie
   setup_homie();
-
 }
 
 void loop() {
@@ -88,7 +85,6 @@ void setup_io(){
 }
 
 void setup_OTA() {
-  ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.onStart(onOTAStart);
   ArduinoOTA.onEnd(onOTAEnd);
   ArduinoOTA.onProgress(onOTAProgress);
@@ -102,7 +98,6 @@ void setup_homie() {
   Homie.setLedPin(D4, HIGH);
   Homie.onEvent(onHomieEvent);
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
-  Homie.setGlobalInputHandler(globalInputHandler);
   Homie.setup();
 }
 
@@ -133,23 +128,6 @@ void onOTAError(ota_error_t error) {
   else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
   else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
   else if (error == OTA_END_ERROR) Serial.println("End Failed");
-}
-
-bool onLightStatus(const HomieRange& range, const String& value) {
-  Serial.println("Value: ");
-  Serial.println(value);
-  if (!strcmp(value.c_str(),"ON")) {
-    digitalWrite(D4, LOW);
-    lightNode.setProperty("value").send("ON");
-    Serial.println("Light is on");
-  } else if (!strcmp(value.c_str(),"OFF")) {
-    digitalWrite(D4, HIGH);
-    lightNode.setProperty("value").send("OFF");
-    Serial.println("Light is off");
-  } else {
-    return false;
-  }
-  return true;
 }
 
 void onHomieEvent(HomieEvent event) {
@@ -190,15 +168,11 @@ void onHomieEvent(HomieEvent event) {
   }
 }
 
-bool globalInputHandler(const HomieNode& node, const String& property, const HomieRange& range, const String& value) {
-  Serial << "Received on node " << node.getId() << ": " << property << " = " << value << endl;
-  if (node.getId() == "out") {
-    if (value != "ON" && value != "OFF") return false;
-    bool set = (value == "ON");
-    uint8_t i = atoi(property.c_str());
-    digitalWrite(D[i], set?HIGH:LOW);
-    outNode.setProperty(property.c_str()).send(set?"ON":"OFF");
-    return true;
-  }
-  return false;
+bool outNodeHandler(const String& property, const HomieRange& range, const String& value){
+  if (value != "ON" && value != "OFF") return false;
+  bool set = (value == "ON");
+  uint8_t i = atoi(property.c_str());
+  digitalWrite(D[i], set?HIGH:LOW);
+  outNode.setProperty(property.c_str()).send(set?"ON":"OFF");
+  return true;
 }
